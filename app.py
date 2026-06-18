@@ -98,18 +98,16 @@ if calcular:
             z_dhl = str(zona_info.iloc[0]['Zona DHL'])
             z_tipsa = str(zona_info.iloc[0]['Zona TIPSA'])
             
-            # --- CÁLCULO DE PESOS TASABLES (Discriminación por volumen) ---
+            # --- CÁLCULO DE PESOS TASABLES (Realidad de almacén) ---
             peso_tasable_cbl = peso
             peso_tasable_dhl = peso
             es_palet = "Palet" in tipo_envio
             
             if es_palet:
-                # Volumen en m3 = (1.2m * 0.8m * Altura en metros)
                 volumen_m3 = 1.2 * 0.8 * (altura_palet / 100.0)
                 
-                # CBL: Cubica a 333 kg/m3
-                peso_vol_cbl = volumen_m3 * 333
-                peso_tasable_cbl = max(peso, peso_vol_cbl)
+                # CBL: No se le aplica volumen por histórico de facturación. Siempre tasable = peso real.
+                peso_tasable_cbl = peso
                 
                 # DHL: Cubica a 250 kg/m3 SOLO si supera los 50kg reales
                 if peso > 50:
@@ -199,7 +197,7 @@ if calcular:
                     "Destino": provincia,
                     "CP": cp,
                     "Formato": "Palet" if es_palet else "Bulto",
-                    "Peso Usado (€)": f"CBL: {peso_tasable_cbl:.1f}kg | DHL: {peso_tasable_dhl:.1f}kg" if es_palet else f"{peso} kg",
+                    "Peso (kg)": peso,
                     "Agencia": mejor_agencia,
                     "Precio": f"{mejor_precio:.2f} €"
                 })
@@ -210,7 +208,7 @@ if calcular:
                 st.metric(label="Coste Total Redondeado (Recargos e Impuestos inc.)", value=f"{mejor_precio:.2f} €")
                 
                 if es_palet:
-                    st.info(f"📊 **Cubicaje calculado ({volumen_m3:.2f} m³):** Basado en {peso}kg reales. Peso tasado en CBL: **{peso_tasable_cbl:.1f} kg** (Ratio 333) | DHL: **{peso_tasable_dhl:.1f} kg** (Ratio 250)")
+                    st.info(f"📊 **Cálculo aplicado:** Palet de {volumen_m3:.2f} m³. DHL penalizado por volumen (**{peso_tasable_dhl:.1f} kg** tasables a ratio 250). CBL cotizado por su peso real (**{peso} kg**) según histórico.")
                 
                 st.markdown("#### 📊 Comparativa completa:")
                 cols_res = st.columns(len(valid_costes))
@@ -221,5 +219,7 @@ if calcular:
 # --- MOSTRAR HISTORIAL AL FINAL ---
 if st.session_state['historial']:
     st.markdown("### 🕒 Últimos 5 envíos verificados")
+    df_hist = pd.DataFrame(st.session_state['historial'])
+    st.dataframe(df_hist, use_container_width=True, hide_index=True)
     df_hist = pd.DataFrame(st.session_state['historial'])
     st.dataframe(df_hist, use_container_width=True, hide_index=True)
