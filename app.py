@@ -3,10 +3,30 @@ import pandas as pd
 import math
 import os
 
-# --- CONFIGURACIÓN DE LA PÁGINA ---
+# --- 1. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Simulador Almacén", page_icon="📦", layout="centered")
 
-# --- QUITAR ESPACIOS BLANCOS EXTRA (CSS Mágico) ---
+# --- 2. BARRA LATERAL: GUÍA DE PESOS (Aparece a la izquierda) ---
+with st.sidebar:
+    st.header("📋 Guía de Pesos Estándar")
+    st.markdown("Calcula rápidamente el peso total si llevas varios bultos iguales:")
+    
+    # Tabla visual de pesos de tu almacén
+    st.markdown("""
+    | Material / Formato | Peso Unidad |
+    | :--- | :--- |
+    | 📦 **Caja Kodak** | 4.0 kg |
+    | 📦 **Caja DNP620** | 6.0 kg |
+    | 📦 **Caja DNP RX1** | 7.0 kg |
+    | 🛢️ **Caja DX100** | 5.0 kg |
+    """)
+    
+    st.info("💡 **Ejemplo rápido:** Si tienes que enviar 3 cajas medianas, introduce **30.0** en la casilla de Peso Real.")
+    
+    st.markdown("---")
+    st.markdown("⚠️ *Ante la duda con bultos irregulares, utiliza siempre la báscula para evitar recargos de la agencia.*")
+
+# --- 3. QUITAR ESPACIOS BLANCOS EXTRA (CSS Mágico) ---
 st.markdown("""
     <style>
         .block-container {
@@ -16,8 +36,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONTROL DE LOGO CORPORATIVO CENTRADO ---
-# Usamos 3 columnas para empujar el logo al centro perfecto
+# --- 4. CONTROL DE LOGO CORPORATIVO CENTRADO ---
 if os.path.exists("logo.png"):
     col1, col_logo, col3 = st.columns([1, 1.5, 1])
     with col_logo:
