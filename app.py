@@ -76,7 +76,7 @@ with st.form("formulario_envio", clear_on_submit=False):
     with col2:
         cp = st.text_input("Código Postal (5 dígitos)", value="", max_chars=5)
         
-    altura_palet = 140
+    altura_palet = 80
     if "Palet" in tipo_envio:
         altura_palet = st.number_input("Altura estimada del palet (cm)", min_value=10, max_value=240, value=140, step=10, help="Por defecto 140cm. Ajusta si es más alto o más bajo.")
 
