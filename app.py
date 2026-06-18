@@ -18,7 +18,7 @@ with st.sidebar:
     | 📦 **Caja Kodak** | 4.0 kg |
     | 📦 **Caja DNP620** | 6.0 kg |
     | 📦 **Caja DNP RX1** | 7.0 kg |
-    | 🛢️ **Caja DX100** | 5.0 kg |
+    | 📦 **Caja DX100** | 5.0 kg |
     """)
     
     st.info("💡 **Ejemplo rápido:** Si tienes que enviar 3 cajas medianas, introduce **30.0** en la casilla de Peso Real.")
