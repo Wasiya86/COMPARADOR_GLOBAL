@@ -78,7 +78,7 @@ with st.form("formulario_envio", clear_on_submit=False):
         
     altura_palet = 80
     if "Palet" in tipo_envio:
-        altura_palet = st.number_input("Altura estimada del palet (cm)", min_value=10, max_value=240, value=140, step=10, help="Por defecto 140cm. Ajusta si es más alto o más bajo.")
+        altura_palet = st.number_input("Altura estimada del palet (cm)", min_value=10, max_value=240, value=80, step=10, help="Por defecto 80cm. Ajusta si es más alto o más bajo.")
 
     calcular = st.form_submit_button("🚀 Calcular Agencia (O pulsa ENTER)", type="primary", use_container_width=True)
 
