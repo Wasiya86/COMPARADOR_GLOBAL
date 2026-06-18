@@ -6,16 +6,27 @@ import os
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Simulador Almacén", page_icon="📦", layout="centered")
 
-# --- CONTROL DE LOGO CORPORATIVO ---
-# Si subes un archivo llamado 'logo.png' a tu GitHub, aparecerá automáticamente aquí centrado
+# --- QUITAR ESPACIOS BLANCOS EXTRA (CSS Mágico) ---
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- CONTROL DE LOGO CORPORATIVO CENTRADO ---
+# Usamos 3 columnas para empujar el logo al centro perfecto
 if os.path.exists("logo.png"):
-    col_logo, _ = st.columns([1, 2])
+    col1, col_logo, col3 = st.columns([1, 1.5, 1])
     with col_logo:
         st.image("logo.png", use_container_width=True)
-else:
-    st.title("📦 Simulador de Envíos - Almacén")
 
-st.markdown("Introduce los datos del bulto y pulsa **ENTER** para calcular de inmediato.")
+# Textos centrados debajo del logo
+st.markdown("<h2 style='text-align: center; color: #333;'>📦 Simulador Global</h2>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #666;'>Introduce el peso y destino. Pulsa <b>ENTER</b> para calcular.</p>", unsafe_allow_html=True)
+st.markdown("---")
 
 # --- INICIALIZAR HISTORIAL EN MEMORIA ---
 if 'historial' not in st.session_state:
