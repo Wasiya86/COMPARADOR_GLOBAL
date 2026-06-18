@@ -6,12 +6,11 @@ import os
 # --- 1. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Simulador Almacén", page_icon="📦", layout="centered")
 
-# --- 2. BARRA LATERAL: GUÍA DE PESOS (Aparece a la izquierda) ---
+# --- 2. BARRA LATERAL: GUÍA DE PESOS ---
 with st.sidebar:
     st.header("📋 Guía de Pesos Estándar")
     st.markdown("Calcula rápidamente el peso total si llevas varios bultos iguales:")
     
-    # Tabla visual de pesos de tu almacén
     st.markdown("""
     | Material / Formato | Peso Unidad |
     | :--- | :--- |
@@ -22,7 +21,6 @@ with st.sidebar:
     """)
     
     st.info("💡 **Ejemplo rápido:** Si tienes que enviar 3 cajas medianas, introduce **30.0** en la casilla de Peso Real.")
-    
     st.markdown("---")
     st.markdown("⚠️ *Ante la duda con bultos irregulares, utiliza siempre la báscula para evitar recargos de la agencia.*")
 
@@ -42,9 +40,8 @@ if os.path.exists("logo.png"):
     with col_logo:
         st.image("logo.png", use_container_width=True)
 
-# Textos centrados debajo del logo
 st.markdown("<h2 style='text-align: center; color: #333;'>📦 Simulador Global</h2>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #666;'>Introduce el peso y destino. Pulsa <b>ENTER</b> para calcular.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #666;'>Introduce los datos y pulsa <b>ENTER</b> para calcular.</p>", unsafe_allow_html=True)
 st.markdown("---")
 
 # --- INICIALIZAR HISTORIAL EN MEMORIA ---
@@ -71,13 +68,18 @@ except Exception as e:
 
 # --- FORMULARIO DE ENTRADA (Permite usar el ENTER) ---
 with st.form("formulario_envio", clear_on_submit=False):
+    tipo_envio = st.radio("Formato del envío:", ["📦 Bulto(s) sueltos", "🪵 Palet Europeo (Base 120x80)"], horizontal=True)
+    
     col1, col2 = st.columns(2)
     with col1:
         peso = st.number_input("Peso Real (kg)", min_value=0.1, value=15.0, step=0.5)
     with col2:
         cp = st.text_input("Código Postal (5 dígitos)", value="", max_chars=5)
-    
-    # El botón ahora pertenece al formulario
+        
+    altura_palet = 140
+    if "Palet" in tipo_envio:
+        altura_palet = st.number_input("Altura estimada del palet (cm)", min_value=10, max_value=240, value=140, step=10, help="Por defecto 140cm. Ajusta si es más alto o más bajo.")
+
     calcular = st.form_submit_button("🚀 Calcular Agencia (O pulsa ENTER)", type="primary", use_container_width=True)
 
 # --- LÓGICA DE CÁLCULO ---
@@ -96,13 +98,33 @@ if calcular:
             z_dhl = str(zona_info.iloc[0]['Zona DHL'])
             z_tipsa = str(zona_info.iloc[0]['Zona TIPSA'])
             
+            # --- CÁLCULO DE PESOS TASABLES (Discriminación por volumen) ---
+            peso_tasable_cbl = peso
+            peso_tasable_dhl = peso
+            es_palet = "Palet" in tipo_envio
+            
+            if es_palet:
+                # Volumen en m3 = (1.2m * 0.8m * Altura en metros)
+                volumen_m3 = 1.2 * 0.8 * (altura_palet / 100.0)
+                
+                # CBL: Cubica a 333 kg/m3
+                peso_vol_cbl = volumen_m3 * 333
+                peso_tasable_cbl = max(peso, peso_vol_cbl)
+                
+                # DHL: Cubica a 250 kg/m3 SOLO si supera los 50kg reales
+                if peso > 50:
+                    peso_vol_dhl = volumen_m3 * 250
+                    peso_tasable_dhl = max(peso, peso_vol_dhl)
+            
             costes = {}
             es_canarias = (z_cbl == "Canarias" or z_cbl == "Especial")
             
-            # --- RUTA ESPECIAL CANARIAS ---
+            # ==========================================
+            # RUTA 1: CANARIAS Y ESPECIALES
+            # ==========================================
             if es_canarias:
                 dua_cbl = 22.00
-                dua_dhl = 23.50  # Por defecto no bajo valor para curarse en salud en almacén
+                dua_dhl = 23.50
                 cp_num = int(cp) if cp.isdigit() else 0
                 
                 isla_mayor = (35000 <= cp_num <= 35499) or (38000 <= cp_num <= 38699)
@@ -116,14 +138,14 @@ if calcular:
                     reexp_dhl = "Interislas"
                 
                 try:
-                    row_cbl = tarifas_cbl_can[tarifas_cbl_can['Hasta Kg'] >= peso].iloc[0]
+                    row_cbl = tarifas_cbl_can[tarifas_cbl_can['Hasta Kg'] >= peso_tasable_cbl].iloc[0]
                     base_cbl = row_cbl[tipo_isla_cbl]
                     costes['CBL Marítimo'] = base_cbl + (base_cbl * 0.10) + (base_cbl * 0.08) + 0.50 + dua_cbl
                 except:
                     costes['CBL Marítimo'] = float('inf')
                     
                 try:
-                    row_dhl = tarifas_dhl_can[tarifas_dhl_can['Hasta Kg'] >= peso].iloc[0]
+                    row_dhl = tarifas_dhl_can[tarifas_dhl_can['Hasta Kg'] >= peso_tasable_dhl].iloc[0]
                     base_dhl_mar = row_dhl['Marítimo (Base)']
                     base_dhl_aer = row_dhl['Aéreo (Base)']
                     extra_reexp = 0
@@ -136,21 +158,23 @@ if calcular:
                     costes['DHL Marítimo'] = float('inf')
                     costes['DHL Aéreo'] = float('inf')
             
-            # --- RUTA PENÍNSULA ---
+            # ==========================================
+            # RUTA 2: PENÍNSULA Y BALEARES
+            # ==========================================
             else:
                 try:
-                    tarifa_cbl = tarifas_cbl[tarifas_cbl['Hasta Kg'] >= peso].iloc[0][f'Zona {z_cbl}']
+                    tarifa_cbl = tarifas_cbl[tarifas_cbl['Hasta Kg'] >= peso_tasable_cbl].iloc[0][f'Zona {z_cbl}']
                     costes['CBL Logística'] = tarifa_cbl + (tarifa_cbl * 0.10) + (tarifa_cbl * 0.08) + 0.50
                 except:
                     costes['CBL Logística'] = float('inf')
                 
                 try:
-                    tarifa_dhl = tarifas_dhl[tarifas_dhl['Hasta Kg'] >= peso].iloc[0][f'Zona {z_dhl}']
+                    tarifa_dhl = tarifas_dhl[tarifas_dhl['Hasta Kg'] >= peso_tasable_dhl].iloc[0][f'Zona {z_dhl}']
                     costes['DHL Parcel'] = tarifa_dhl + (tarifa_dhl * 0.1015)
                 except:
                     costes['DHL Parcel'] = float('inf')
                 
-                if z_tipsa != "No Ofertado" and peso <= 50:
+                if z_tipsa != "No Ofertado" and peso <= 50 and not es_palet:
                     try:
                         tarifa_tipsa = tarifas_tipsa[tarifas_tipsa['Hasta Kg'] >= peso].iloc[0][z_tipsa]
                         costes['TIPSA Economy'] = tarifa_tipsa + (tarifa_tipsa * 0.1030)
@@ -159,11 +183,13 @@ if calcular:
                 else:
                     costes['TIPSA Economy'] = float('inf')
             
-            # --- MOSTRAR RESULTADOS TIPO TARJETA ---
+            # ==========================================
+            # VISUALIZACIÓN DE RESULTADOS
+            # ==========================================
             valid_costes = {k: v for k, v in costes.items() if v != float('inf')}
             
             if not valid_costes:
-                st.error("No hay servicios disponibles para este peso.")
+                st.error("No hay servicios disponibles para este rango de peso.")
             else:
                 mejor_agencia = min(valid_costes, key=valid_costes.get)
                 mejor_precio = valid_costes[mejor_agencia]
@@ -172,19 +198,20 @@ if calcular:
                 st.session_state['historial'].insert(0, {
                     "Destino": provincia,
                     "CP": cp,
-                    "Peso (kg)": peso,
-                    "Agencia Elegida": mejor_agencia,
-                    "Precio Final (€)": f"{mejor_precio:.2f} €"
+                    "Formato": "Palet" if es_palet else "Bulto",
+                    "Peso Usado (€)": f"CBL: {peso_tasable_cbl:.1f}kg | DHL: {peso_tasable_dhl:.1f}kg" if es_palet else f"{peso} kg",
+                    "Agencia": mejor_agencia,
+                    "Precio": f"{mejor_precio:.2f} €"
                 })
-                st.session_state['historial'] = st.session_state['historial'][:5] # Conservar 5
+                st.session_state['historial'] = st.session_state['historial'][:5]
                 
                 st.markdown(f"### 📍 Destino: {provincia}")
-                
-                # Tarjeta Destacada Verde
                 st.success(f"### 🏆 RECOMENDACIÓN: {mejor_agencia}")
                 st.metric(label="Coste Total Redondeado (Recargos e Impuestos inc.)", value=f"{mejor_precio:.2f} €")
                 
-                # Desglose del resto
+                if es_palet:
+                    st.info(f"📊 **Cubicaje calculado ({volumen_m3:.2f} m³):** Basado en {peso}kg reales. Peso tasado en CBL: **{peso_tasable_cbl:.1f} kg** (Ratio 333) | DHL: **{peso_tasable_dhl:.1f} kg** (Ratio 250)")
+                
                 st.markdown("#### 📊 Comparativa completa:")
                 cols_res = st.columns(len(valid_costes))
                 for idx, (agencia, precio) in enumerate(valid_costes.items()):
