@@ -12,7 +12,7 @@ with st.sidebar:
     st.markdown("Calcula rápidamente el peso total si llevas varios bultos iguales:")
     
     st.markdown("""
-    | Material / Formato | Peso Unidad |
+   | Material / Formato | Peso Unidad |
     | :--- | :--- |
     | 📦 **Caja Kodak** | 4.0 kg |
     | 📦 **Caja DNP620** | 6.0 kg |
@@ -76,9 +76,9 @@ with st.form("formulario_envio", clear_on_submit=False):
     with col2:
         cp = st.text_input("Código Postal (5 dígitos)", value="", max_chars=5)
         
-    altura_palet = 80
+    altura_palet = 140
     if "Palet" in tipo_envio:
-        altura_palet = st.number_input("Altura estimada del palet (cm)", min_value=10, max_value=240, value=80, step=10, help="Por defecto 80cm. Ajusta si es más alto o más bajo.")
+        altura_palet = st.number_input("Altura estimada del palet (cm)", min_value=10, max_value=240, value=140, step=10, help="Por defecto 140cm. Ajusta si es más alto o más bajo.")
 
     calcular = st.form_submit_button("🚀 Calcular Agencia (O pulsa ENTER)", type="primary", use_container_width=True)
 
@@ -98,21 +98,26 @@ if calcular:
             z_dhl = str(zona_info.iloc[0]['Zona DHL'])
             z_tipsa = str(zona_info.iloc[0]['Zona TIPSA'])
             
-            # --- CÁLCULO DE PESOS TASABLES (Realidad de almacén) ---
+            # --- CÁLCULO DE PESOS TASABLES (Nuevas condiciones DHL) ---
             peso_tasable_cbl = peso
             peso_tasable_dhl = peso
             es_palet = "Palet" in tipo_envio
+            ratio_dhl_aplicado = 0
             
             if es_palet:
                 volumen_m3 = 1.2 * 0.8 * (altura_palet / 100.0)
                 
-                # CBL: No se le aplica volumen por histórico de facturación. Siempre tasable = peso real.
+                # CBL: Se mantiene por peso real limpio según vuestro histórico
                 peso_tasable_cbl = peso
                 
-                # DHL: Cubica a 250 kg/m3 SOLO si supera los 50kg reales
-                if peso > 50:
-                    peso_vol_dhl = volumen_m3 * 250
-                    peso_tasable_dhl = max(peso, peso_vol_dhl)
+                # DHL: Nueva escala escalonada de cubicaje
+                if peso <= 200:
+                    ratio_dhl_aplicado = 167
+                else:
+                    ratio_dhl_aplicado = 200
+                    
+                peso_vol_dhl = volumen_m3 * ratio_dhl_aplicado
+                peso_tasable_dhl = max(peso, peso_vol_dhl)
             
             costes = {}
             es_canarias = (z_cbl == "Canarias" or z_cbl == "Especial")
@@ -208,7 +213,7 @@ if calcular:
                 st.metric(label="Coste Total Redondeado (Recargos e Impuestos inc.)", value=f"{mejor_precio:.2f} €")
                 
                 if es_palet:
-                    st.info(f"📊 **Cálculo aplicado:** Palet de {volumen_m3:.2f} m³. DHL penalizado por volumen (**{peso_tasable_dhl:.1f} kg** tasables a ratio 250). CBL cotizado por su peso real (**{peso} kg**) según histórico.")
+                    st.info(f"📊 **Cálculo aplicado:** Palet de {volumen_m3:.2f} m³. DHL cubicado a ratio **{ratio_dhl_aplicado} kg/m³** según escala actual (**{peso_tasable_dhl:.1f} kg** tasables). CBL cotizado por su peso real (**{peso} kg**).")
                 
                 st.markdown("#### 📊 Comparativa completa:")
                 cols_res = st.columns(len(valid_costes))
@@ -219,7 +224,5 @@ if calcular:
 # --- MOSTRAR HISTORIAL AL FINAL ---
 if st.session_state['historial']:
     st.markdown("### 🕒 Últimos 5 envíos verificados")
-    df_hist = pd.DataFrame(st.session_state['historial'])
-    st.dataframe(df_hist, use_container_width=True, hide_index=True)
     df_hist = pd.DataFrame(st.session_state['historial'])
     st.dataframe(df_hist, use_container_width=True, hide_index=True)
