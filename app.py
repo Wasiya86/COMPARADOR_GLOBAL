@@ -288,9 +288,9 @@ with tab2:
         col_graf1, col_graf2 = st.columns(2)
         
         with col_graf1:
-            st.markdown("#### 📍 Top 10 Provincias con Mayor Tasa de Fallo")
+            st.markdown("#### 📍 Top Provincias con Mayor Tasa de Fallo (Mín. 5 envíos)")
             
-            # Calcular % de fallo por provincia
+            # Calcular % de fallo y total de envíos por provincia y agencia
             stats_prov = df_filtrado.groupby(['Provincia', 'Agencia']).agg(
                 Total=('Retraso', 'count'),
                 Fallos=('Retraso', 'sum')
@@ -298,17 +298,24 @@ with tab2:
             
             stats_prov['Tasa Fallo (%)'] = (stats_prov['Fallos'] / stats_prov['Total']) * 100
             
-            # Filtramos solo las que tienen fallos y nos quedamos con el Top 10 real
+            # 🛡️ FILTRO SENIOR: Excluir provincias con menos de 5 envíos para evitar falsos 100%
+            stats_prov = stats_prov[stats_prov['Total'] >= 5]
+            
+            # Filtramos las que tienen fallos reales y cogemos el Top 10
             stats_prov = stats_prov[stats_prov['Fallos'] > 0]
             stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=False).head(10)
+            
             # Ordenar ascendente para que la barra más alta quede arriba en el gráfico horizontal
             stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=True)
             
+            # Añadir etiqueta descriptiva con el total de envíos (ej: "Sevilla (14 envs)")
+            stats_prov['Provincia_Label'] = stats_prov['Provincia'] + " (" + stats_prov['Total'].astype(str) + " envs)"
+            
             if stats_prov.empty:
-                st.info("No hay suficientes datos de retrasos con este filtro.")
+                st.info("No hay suficientes provincias con un volumen significativo (>5 envíos) y retrasos para mostrar.")
             else:
                 fig_prov = px.bar(
-                    stats_prov, x='Tasa Fallo (%)', y='Provincia', color='Agencia', 
+                    stats_prov, x='Tasa Fallo (%)', y='Provincia_Label', color='Agencia', 
                     barmode='group', orientation='h',
                     color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'},
                     text_auto='.1f'
