@@ -40,7 +40,7 @@ st.markdown("""
 if os.path.exists("logo.png"):
     _, col_centro, _ = st.columns([2, 1, 2])
     with col_centro:
-        st.image("logo.png", width=220)
+        st.image("logo.png", width=300)
 st.markdown("<h2 style='text-align: center; color: #333;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
 st.markdown("---")
 
