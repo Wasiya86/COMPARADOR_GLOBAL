@@ -38,9 +38,11 @@ st.markdown("""
 
 # --- 4. CONTROL DE LOGO CORPORATIVO CENTRADO ---
 if os.path.exists("logo.png"):
-    _, col_centro, _ = st.columns([1, 1, 1])
-    with col_centro:
-        st.image("logo.png", width=200)
+    st.markdown("""
+        <div style="text-align: center; display: flex; justify-content: center; align-items: center;">
+            <img src="logo.png" width="200" style="display: block; margin: 0 auto;">
+        </div>
+    """, unsafe_allow_html=True)
 st.markdown("<h2 style='text-align: center; color: #333;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
 st.markdown("---")
 
