@@ -241,7 +241,7 @@ with tab1:
 # PESTAÑA 2: DASHBOARD DE AUDITORÍA
 # ==========================================
 with tab2:
-    st.header("📊 Auditoría Logística: DHL vs CBL")
+    st.markdown("### 📊 Cuadro de Mandos: Auditoría de Proveedores")
     
     # 1. CONEXIÓN A GOOGLE SHEETS
     url_google_sheet = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQiHaIV7qP1PSCSTSSNlePsJNa3ySK_lGyBUqccQH_vtWgzz3lOVlqeDeCBgSVyXe3mmJuyf0F29t1e/pub?output=csv"
@@ -249,16 +249,22 @@ with tab2:
     try:
         df = pd.read_csv(url_google_sheet)
         
-        # Procesamiento de fechas y cálculo de días hábiles
+        # Procesamiento y limpieza
         df['Fecha Salida'] = pd.to_datetime(df['Fecha Salida'], format='%d/%m/%Y', errors='coerce')
         df['Fecha Entrega'] = pd.to_datetime(df['Fecha Entrega'], format='%d/%m/%Y', errors='coerce')
         df = df.dropna(subset=['Fecha Salida', 'Fecha Entrega'])
         
+        # Normalizar nombres de provincias a título (ej. "SEVILLA" o "Sevilla" -> "Sevilla")
+        df['Provincia'] = df['Provincia'].astype(str).str.strip().str.title()
+        
         df['Dias Habiles'] = np.busday_count(df['Fecha Salida'].values.astype('datetime64[D]'), df['Fecha Entrega'].values.astype('datetime64[D]'))
         df['Retraso'] = df['Dias Habiles'] > 2
         
-        # Interfaz de Filtros
-        agencia_filtro = st.selectbox("Selecciona Agencia a analizar:", ["Todas", "DHL", "CBL"])
+        # --- FILTROS SUPERIORES ---
+        col_filtro1, col_filtro2 = st.columns([2, 2])
+        with col_filtro1:
+            agencia_filtro = st.selectbox("🔍 Filtrar por Agencia:", ["Todas", "DHL", "CBL"])
+            
         if agencia_filtro != "Todas":
             df_filtrado = df[df['Agencia'] == agencia_filtro]
         else:
@@ -266,32 +272,92 @@ with tab2:
             
         df_retrasos = df_filtrado[df_filtrado['Retraso'] == True]
         
+        # --- TARJETAS DE KPIs SUPERIORES ---
+        total_envios = len(df_filtrado)
+        total_retrasos = len(df_retrasos)
+        tasa_global_fallo = (total_retrasos / total_envios * 100) if total_envios > 0 else 0
+        
+        kpi1, kpi2, kpi3 = st.columns(3)
+        kpi1.metric("📦 Total Envíos Analizados", f"{total_envios:,}")
+        kpi2.metric("🚨 Total Incidencias / Retrasos", f"{total_retrasos:,}", delta=f"-{tasa_global_fallo:.1f}% fallo", delta_color="inverse")
+        kpi3.metric("⏱️ Días Máximos de Retraso", f"{df_filtrado['Dias Habiles'].max()} días hábiles")
+        
+        st.markdown("---")
+        
+        # --- PREPARAR DATOS PARA GRÁFICOS ---
         col_graf1, col_graf2 = st.columns(2)
         
         with col_graf1:
-            st.subheader("📍 Peores Provincias (% Fallo)")
-            stats_prov = df_filtrado.groupby(['Provincia', 'Agencia']).agg(Total=('Retraso', 'count'), Fallos=('Retraso', 'sum')).reset_index()
-            stats_prov['Tasa Fallo (%)'] = (stats_prov['Fallos'] / stats_prov['Total']) * 100
-            stats_prov = stats_prov[stats_prov['Fallos'] > 0].sort_values('Tasa Fallo (%)', ascending=True)
+            st.markdown("#### 📍 Top 10 Provincias con Mayor Tasa de Fallo")
             
-            fig_prov = px.bar(stats_prov, x='Tasa Fallo (%)', y='Provincia', color='Agencia', barmode='group', orientation='h', color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'})
-            st.plotly_chart(fig_prov, use_container_width=True)
+            # Calcular % de fallo por provincia
+            stats_prov = df_filtrado.groupby(['Provincia', 'Agencia']).agg(
+                Total=('Retraso', 'count'),
+                Fallos=('Retraso', 'sum')
+            ).reset_index()
+            
+            stats_prov['Tasa Fallo (%)'] = (stats_prov['Fallos'] / stats_prov['Total']) * 100
+            
+            # Filtramos solo las que tienen fallos y nos quedamos con el Top 10 real
+            stats_prov = stats_prov[stats_prov['Fallos'] > 0]
+            stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=False).head(10)
+            # Ordenar ascendente para que la barra más alta quede arriba en el gráfico horizontal
+            stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=True)
+            
+            if stats_prov.empty:
+                st.info("No hay suficientes datos de retrasos con este filtro.")
+            else:
+                fig_prov = px.bar(
+                    stats_prov, x='Tasa Fallo (%)', y='Provincia', color='Agencia', 
+                    barmode='group', orientation='h',
+                    color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'},
+                    text_auto='.1f'
+                )
+                fig_prov.update_layout(
+                    xaxis_title="Tasa de Fallo (%)", yaxis_title="",
+                    margin=dict(l=10, r=10, t=10, b=10), height=380,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                st.plotly_chart(fig_prov, use_container_width=True)
             
         with col_graf2:
-            st.subheader("🚨 Top Peores Retrasos")
-            top_peores = df_retrasos.sort_values(by='Dias Habiles', ascending=False).head(10)
+            st.markdown("#### 🚨 Top 10 Mayores Retrasos en Días")
             
-            fig_top = px.bar(top_peores, x='Expedicion', y='Dias Habiles', color='Agencia', text='Provincia', color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'})
-            fig_top.update_traces(textposition='outside')
-            st.plotly_chart(fig_top, use_container_width=True)
+            top_peores = df_retrasos.sort_values(by='Dias Habiles', ascending=False).head(10).copy()
+            # Convertimos expedicion a string para que el gráfico lo trate como categoría discreta y no amontone números raros en el eje X
+            top_peores['Expedicion'] = top_peores['Expedicion'].astype(str)
+            
+            if top_peores.empty:
+                st.success("¡Excelente! No hay retrasos registrados con los filtros actualizados.")
+            else:
+                fig_top = px.bar(
+                    top_peores, x='Expedicion', y='Dias Habiles', color='Agencia',
+                    text='Provincia',
+                    color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'}
+                )
+                fig_top.update_traces(textposition='outside')
+                fig_top.update_layout(
+                    xaxis_title="Nº de Expedición", yaxis_title="Días Hábiles",
+                    margin=dict(l=10, r=10, t=10, b=10), height=380,
+                    xaxis={'type': 'category'},
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                st.plotly_chart(fig_top, use_container_width=True)
             
         st.markdown("---")
-        st.subheader("📋 Registro Detallado de Incumplimientos")
+        st.markdown("#### 📋 Detalle de Expediciones con Incumplimiento (> 2 días)")
         
-        # Formatear fechas para la tabla visual
-        df_retrasos['Fecha Salida'] = df_retrasos['Fecha Salida'].dt.strftime('%d/%m/%Y')
-        df_retrasos['Fecha Entrega'] = df_retrasos['Fecha Entrega'].dt.strftime('%d/%m/%Y')
-        st.dataframe(df_retrasos[['Agencia', 'Expedicion', 'Provincia', 'Fecha Salida', 'Fecha Entrega', 'Dias Habiles']].sort_values('Dias Habiles', ascending=False), use_container_width=True, hide_index=True)
+        # Formatear fechas para visualización limpia en tabla
+        df_retrasos_show = df_retrasos.copy()
+        df_retrasos_show['Fecha Salida'] = df_retrasos_show['Fecha Salida'].dt.strftime('%d/%m/%Y')
+        df_retrasos_show['Fecha Entrega'] = df_retrasos_show['Fecha Entrega'].dt.strftime('%d/%m/%Y')
+        
+        st.dataframe(
+            df_retrasos_show[['Agencia', 'Expedicion', 'Provincia', 'Fecha Salida', 'Fecha Entrega', 'Dias Habiles']]
+            .sort_values('Dias Habiles', ascending=False), 
+            use_container_width=True, 
+            hide_index=True
+        )
         
     except Exception as e:
-        st.info("⚠️ El panel de auditoría está a la espera de que pegues el enlace CSV de tu Google Sheets en el código.")
+        st.error(f"⚠️ Error al cargar el panel de auditoría: {e}")
