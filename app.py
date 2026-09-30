@@ -255,35 +255,44 @@ with tab2:
         df = df.dropna(subset=['Fecha Salida', 'Fecha Entrega'])
         df['Provincia'] = df['Provincia'].astype(str).str.strip().str.title()
         
-        # --- 📅 EXTRACCIÓN Y FILTRO DE MESES (Histórico Acumulado) ---
-        df['Mes_Anno'] = df['Fecha Salida'].dt.strftime('%Y-%m') # Ej: "2026-07", "2026-08"
-        
-        # --- FILTROS SUPERIORES (Mes y Agencia) ---
+        # --- 📅 FILTROS SUPERIORES: RANGO DE FECHAS Y AGENCIA ---
         col_f1, col_f2 = st.columns(2)
+        
         with col_f1:
-            meses_disponibles = ["Todo el histórico"] + sorted(df['Mes_Anno'].unique().tolist(), reverse=True)
-            mes_seleccionado = st.selectbox("📅 Selecciona Periodo / Mes:", meses_disponibles)
+            # Obtener fecha mínima y máxima del Google Sheet para los límites del calendario
+            min_f = df['Fecha Salida'].min().date()
+            max_f = df['Fecha Salida'].max().date()
+            
+            # Selector de rango de fechas personalizado (Ideal para campañas como mayo-junio)
+            rango_fechas = st.date_input(
+                "📅 Rango de Fechas (Campaña / Periodo):",
+                value=(min_f, max_f),
+                min_value=min_f,
+                max_value=max_f
+            )
             
         with col_f2:
+            st.markdown("<br>", unsafe_allow_html=True) # Pequeño espacio visual para alinear con el calendario
             agencia_filtro = st.selectbox("🔍 Filtrar por Agencia:", ["Todas", "DHL", "CBL"])
             
-        # Aplicar filtros de mes y agencia
-        if mes_seleccionado != "Todo el histórico":
-            df = df[df['Mes_Anno'] == mes_seleccionado]
+        # Aplicar el filtro de rango de fechas de forma segura
+        if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
+            inicio_filtro, fin_filtro = rango_fechas
+            df = df[(df['Fecha Salida'].dt.date >= inicio_filtro) & (df['Fecha Salida'].dt.date <= fin_filtro)]
             
+        # Aplicar filtro de agencia
         if agencia_filtro != "Todas":
-            df_filtrado = df[df['Agencia'] == agencia_filtro]
+            df_filtrado = df[df['Agencia'] == agencia_filtro].copy()
         else:
-            df_filtrado = df
+            df_filtrado = df.copy()
             
-        df['Dias Habiles'] = np.busday_count(df['Fecha Salida'].values.astype('datetime64[D]'), df['Fecha Entrega'].values.astype('datetime64[D]'))
-        df['Retraso'] = df['Dias Habiles'] > 2
+        # Cálculos de días hábiles y retrasos
+        df_filtrado['Dias Habiles'] = np.busday_count(
+            df_filtrado['Fecha Salida'].values.astype('datetime64[D]'), 
+            df_filtrado['Fecha Entrega'].values.astype('datetime64[D]')
+        )
+        df_filtrado['Retraso'] = df_filtrado['Dias Habiles'] > 2
         
-        # Actualizamos df_filtrado con el cálculo de retrasos
-        df_filtrado = df.copy()
-        if agencia_filtro != "Todas":
-            df_filtrado = df_filtrado[df_filtrado['Agencia'] == agencia_filtro]
-            
         df_retrasos = df_filtrado[df_filtrado['Retraso'] == True]
         
         # --- TARJETAS DE KPIs SUPERIORES ---
@@ -302,7 +311,11 @@ with tab2:
         col_graf1, col_graf2 = st.columns(2)
         
         with col_graf1:
-            st.markdown("#### 📍 Top Provincias con Mayor Tasa de Fallo (Mín. 5 envíos)")
+            # 🛡️ UMBRAL DINÁMICO: Si el rango de fechas es menor de 90 días, exigimos mínimo 2 envíos; si es mayor, 5.
+            dias_rango = (fin_filtro - inicio_filtro).days if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2 else 365
+            min_envios_umbral = 2 if dias_rango <= 92 else 5
+            
+            st.markdown(f"#### 📍 Top Provincias con Mayor Tasa de Fallo (Mín. {min_envios_umbral} envs)")
             
             stats_prov = df_filtrado.groupby(['Provincia', 'Agencia']).agg(
                 Total=('Retraso', 'count'),
@@ -310,14 +323,14 @@ with tab2:
             ).reset_index()
             
             stats_prov['Tasa Fallo (%)'] = (stats_prov['Fallos'] / stats_prov['Total']) * 100
-            stats_prov = stats_prov[stats_prov['Total'] >= 5]
+            stats_prov = stats_prov[stats_prov['Total'] >= min_envios_umbral]
             stats_prov = stats_prov[stats_prov['Fallos'] > 0]
             stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=False).head(10)
             stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=True)
             stats_prov['Provincia_Label'] = stats_prov['Provincia'] + " (" + stats_prov['Total'].astype(str) + " envs)"
             
             if stats_prov.empty:
-                st.info("No hay suficientes provincias con volumen significativo (>5 envíos) para este filtro.")
+                st.info(f"No hay suficientes provincias con un volumen de al menos {min_envios_umbral} envíos para este rango de fechas.")
             else:
                 fig_prov = px.bar(
                     stats_prov, x='Tasa Fallo (%)', y='Provincia_Label', color='Agencia', 
@@ -339,7 +352,7 @@ with tab2:
             top_peores['Expedicion'] = top_peores['Expedicion'].astype(str)
             
             if top_peores.empty:
-                st.success("¡Excelente! No hay retrasos registrados con los filtros seleccionados.")
+                st.success("¡Excelente! No hay retrasos registrados en este rango de fechas.")
             else:
                 fig_top = px.bar(
                     top_peores, x='Expedicion', y='Dias Habiles', color='Agencia',
@@ -370,4 +383,4 @@ with tab2:
         )
         
     except Exception as e:
-        st.error(f"⚠️ El panel de auditoría está esperando que pegues tu enlace CSV de Google Sheets.")
+        st.error(f"⚠️ Error al cargar el panel de auditoría: {e}")
