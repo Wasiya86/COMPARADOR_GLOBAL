@@ -253,22 +253,36 @@ with tab2:
         df['Fecha Salida'] = pd.to_datetime(df['Fecha Salida'], format='%d/%m/%Y', errors='coerce')
         df['Fecha Entrega'] = pd.to_datetime(df['Fecha Entrega'], format='%d/%m/%Y', errors='coerce')
         df = df.dropna(subset=['Fecha Salida', 'Fecha Entrega'])
-        
-        # Normalizar nombres de provincias a título (ej. "SEVILLA" o "Sevilla" -> "Sevilla")
         df['Provincia'] = df['Provincia'].astype(str).str.strip().str.title()
         
-        df['Dias Habiles'] = np.busday_count(df['Fecha Salida'].values.astype('datetime64[D]'), df['Fecha Entrega'].values.astype('datetime64[D]'))
-        df['Retraso'] = df['Dias Habiles'] > 2
+        # --- 📅 EXTRACCIÓN Y FILTRO DE MESES (Histórico Acumulado) ---
+        df['Mes_Anno'] = df['Fecha Salida'].dt.strftime('%Y-%m') # Ej: "2026-07", "2026-08"
         
-        # --- FILTROS SUPERIORES ---
-        col_filtro1, col_filtro2 = st.columns([2, 2])
-        with col_filtro1:
+        # --- FILTROS SUPERIORES (Mes y Agencia) ---
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            meses_disponibles = ["Todo el histórico"] + sorted(df['Mes_Anno'].unique().tolist(), reverse=True)
+            mes_seleccionado = st.selectbox("📅 Selecciona Periodo / Mes:", meses_disponibles)
+            
+        with col_f2:
             agencia_filtro = st.selectbox("🔍 Filtrar por Agencia:", ["Todas", "DHL", "CBL"])
+            
+        # Aplicar filtros de mes y agencia
+        if mes_seleccionado != "Todo el histórico":
+            df = df[df['Mes_Anno'] == mes_seleccionado]
             
         if agencia_filtro != "Todas":
             df_filtrado = df[df['Agencia'] == agencia_filtro]
         else:
             df_filtrado = df
+            
+        df['Dias Habiles'] = np.busday_count(df['Fecha Salida'].values.astype('datetime64[D]'), df['Fecha Entrega'].values.astype('datetime64[D]'))
+        df['Retraso'] = df['Dias Habiles'] > 2
+        
+        # Actualizamos df_filtrado con el cálculo de retrasos
+        df_filtrado = df.copy()
+        if agencia_filtro != "Todas":
+            df_filtrado = df_filtrado[df_filtrado['Agencia'] == agencia_filtro]
             
         df_retrasos = df_filtrado[df_filtrado['Retraso'] == True]
         
@@ -280,7 +294,7 @@ with tab2:
         kpi1, kpi2, kpi3 = st.columns(3)
         kpi1.metric("📦 Total Envíos Analizados", f"{total_envios:,}")
         kpi2.metric("🚨 Total Incidencias / Retrasos", f"{total_retrasos:,}", delta=f"-{tasa_global_fallo:.1f}% fallo", delta_color="inverse")
-        kpi3.metric("⏱️ Días Máximos de Retraso", f"{df_filtrado['Dias Habiles'].max()} días hábiles")
+        kpi3.metric("⏱️ Días Máximos de Retraso", f"{df_filtrado['Dias Habiles'].max() if total_envios > 0 else 0} días hábiles")
         
         st.markdown("---")
         
@@ -290,29 +304,20 @@ with tab2:
         with col_graf1:
             st.markdown("#### 📍 Top Provincias con Mayor Tasa de Fallo (Mín. 5 envíos)")
             
-            # Calcular % de fallo y total de envíos por provincia y agencia
             stats_prov = df_filtrado.groupby(['Provincia', 'Agencia']).agg(
                 Total=('Retraso', 'count'),
                 Fallos=('Retraso', 'sum')
             ).reset_index()
             
             stats_prov['Tasa Fallo (%)'] = (stats_prov['Fallos'] / stats_prov['Total']) * 100
-            
-            # 🛡️ FILTRO SENIOR: Excluir provincias con menos de 5 envíos para evitar falsos 100%
             stats_prov = stats_prov[stats_prov['Total'] >= 5]
-            
-            # Filtramos las que tienen fallos reales y cogemos el Top 10
             stats_prov = stats_prov[stats_prov['Fallos'] > 0]
             stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=False).head(10)
-            
-            # Ordenar ascendente para que la barra más alta quede arriba en el gráfico horizontal
             stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=True)
-            
-            # Añadir etiqueta descriptiva con el total de envíos (ej: "Sevilla (14 envs)")
             stats_prov['Provincia_Label'] = stats_prov['Provincia'] + " (" + stats_prov['Total'].astype(str) + " envs)"
             
             if stats_prov.empty:
-                st.info("No hay suficientes provincias con un volumen significativo (>5 envíos) y retrasos para mostrar.")
+                st.info("No hay suficientes provincias con volumen significativo (>5 envíos) para este filtro.")
             else:
                 fig_prov = px.bar(
                     stats_prov, x='Tasa Fallo (%)', y='Provincia_Label', color='Agencia', 
@@ -331,11 +336,10 @@ with tab2:
             st.markdown("#### 🚨 Top 10 Mayores Retrasos en Días")
             
             top_peores = df_retrasos.sort_values(by='Dias Habiles', ascending=False).head(10).copy()
-            # Convertimos expedicion a string para que el gráfico lo trate como categoría discreta y no amontone números raros en el eje X
             top_peores['Expedicion'] = top_peores['Expedicion'].astype(str)
             
             if top_peores.empty:
-                st.success("¡Excelente! No hay retrasos registrados con los filtros actualizados.")
+                st.success("¡Excelente! No hay retrasos registrados con los filtros seleccionados.")
             else:
                 fig_top = px.bar(
                     top_peores, x='Expedicion', y='Dias Habiles', color='Agencia',
@@ -354,7 +358,6 @@ with tab2:
         st.markdown("---")
         st.markdown("#### 📋 Detalle de Expediciones con Incumplimiento (> 2 días)")
         
-        # Formatear fechas para visualización limpia en tabla
         df_retrasos_show = df_retrasos.copy()
         df_retrasos_show['Fecha Salida'] = df_retrasos_show['Fecha Salida'].dt.strftime('%d/%m/%Y')
         df_retrasos_show['Fecha Entrega'] = df_retrasos_show['Fecha Entrega'].dt.strftime('%d/%m/%Y')
@@ -367,4 +370,4 @@ with tab2:
         )
         
     except Exception as e:
-        st.error(f"⚠️ Error al cargar el panel de auditoría: {e}")
+        st.error(f"⚠️ El panel de auditoría está esperando que pegues tu enlace CSV de Google Sheets.")
