@@ -52,18 +52,23 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. CONTROL DE LOGO CORPORATIVO CENTRADO (RESPONSIVE) ---
-if os.path.exists("logo.png"):
-    # Centramos el logo y el título con un contenedor fluido adaptable a móviles y PC
-    st.markdown(
-        """
-        <div style="text-align: center; margin-bottom: 20px;">
-            <img src="app/static/logo.png" style="max-width: 180px; width: 100%; height: auto; margin-bottom: 10px;">
-            <h2 style='color: #333; margin: 0;'>📦 Portal Logístico Global</h2>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+# --- 4. CONTROL DE LOGO CORPORATIVO CENTRADO (RUTA SEGURA) ---
+import os
+from PIL import Image
+
+ruta_logo = os.path.join(os.path.dirname(__file__), "logo.png")
+
+if os.path.exists(ruta_logo):
+    _, col_centro, _ = st.columns([1, 2, 1])
+    with col_centro:
+        imagen = Image.open(ruta_logo)
+        st.image(imagen, use_container_width=True)
+    
+    st.markdown("<h2 style='text-align: center; color: #333;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
+    st.markdown("---")
+else:
+    # Por si acaso no lo encuentra, mostramos directamente el título limpio para que no falle nunca
+    st.markdown("<h2 style='text-align: center; color: #333;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
     st.markdown("---")
 
 # ==========================================
