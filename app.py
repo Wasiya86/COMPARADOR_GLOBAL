@@ -6,7 +6,11 @@ import numpy as np
 import plotly.express as px
 
 # --- 1. CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="Simulador Almacén", page_icon="📦", layout="wide")
+st.set_page_config(
+    page_title="Portal Logístico Global",
+    page_icon="📦",
+    layout="wide"
+)
 # --- CONFIGURACIÓN DE METADATOS PARA COMPARTIR ENLACE (WHATSAPP / REDES) ---
 st.markdown(
     """
