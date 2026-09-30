@@ -244,7 +244,7 @@ with tab2:
     st.header("📊 Auditoría Logística: DHL vs CBL")
     
     # 1. CONEXIÓN A GOOGLE SHEETS
-    url_google_sheet = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQiHaIV7qP1PSCSTSSNlePsJNa3ySK_lGyBUqccQH_vtWgzz3lOVlqeDeCBgSVyXe3mmJuyf0F29t1e/pub?gid=0&single=true&output=csv"
+    url_google_sheet = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQiHaIV7qP1PSCSTSSNlePsJNa3ySK_lGyBUqccQH_vtWgzz3lOVlqeDeCBgSVyXe3mmJuyf0F29t1e/pub?output=csv"
     
     try:
         df = pd.read_csv(url_google_sheet)
