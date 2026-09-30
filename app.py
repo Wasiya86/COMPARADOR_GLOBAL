@@ -7,6 +7,18 @@ import plotly.express as px
 
 # --- 1. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Simulador Almacén", page_icon="📦", layout="wide")
+# --- CONFIGURACIÓN DE METADATOS PARA COMPARTIR ENLACE (WHATSAPP / REDES) ---
+st.markdown(
+    """
+    <head>
+        <meta property="title" content="Portal Logístico Global | Grupo Universal">
+        <meta property="description" content="Sistema oficial de control, simulación de tarifas y auditoría de agencias (DHL y CBL).">
+        <meta property="og:title" content="Portal Logístico Global | Grupo Universal">
+        <meta property="og:description" content="Control de expediciones, tiempos de tránsito y auditoría de proveedores logísticos.">
+    </head>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- 2. BARRA LATERAL: GUÍA DE PESOS ---
 with st.sidebar:
