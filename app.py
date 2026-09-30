@@ -255,15 +255,13 @@ with tab2:
         df = df.dropna(subset=['Fecha Salida', 'Fecha Entrega'])
         df['Provincia'] = df['Provincia'].astype(str).str.strip().str.title()
         
-        # --- 📅 FILTROS SUPERIORES: RANGO DE FECHAS Y AGENCIA ---
+        # --- 📅 FILTROS SUPERIORES: RANGO DE FECHAS Y AGENCIA (PERFECTAMENTE ALINEADOS) ---
         col_f1, col_f2 = st.columns(2)
         
         with col_f1:
-            # Obtener fecha mínima y máxima del Google Sheet para los límites del calendario
             min_f = df['Fecha Salida'].min().date()
             max_f = df['Fecha Salida'].max().date()
             
-            # Selector de rango de fechas personalizado (Ideal para campañas como mayo-junio)
             rango_fechas = st.date_input(
                 "📅 Rango de Fechas (Campaña / Periodo):",
                 value=(min_f, max_f),
@@ -272,8 +270,13 @@ with tab2:
             )
             
         with col_f2:
-            st.markdown("<br>", unsafe_allow_html=True) # Pequeño espacio visual para alinear con el calendario
-            agencia_filtro = st.selectbox("🔍 Filtrar por Agencia:", ["Todas", "DHL", "CBL"])
+            # Damos al selectbox exactamente el mismo texto de label (o invisible pero ocupando el espacio de la etiqueta superior) 
+            # para que el desplegable baje y se quede milimétricamente alineado con la caja del calendario de al lado.
+            agencia_filtro = st.selectbox(
+                "🔍 Filtrar por Agencia:", 
+                ["Todas", "DHL", "CBL"],
+                help="Selecciona una agencia específica o déjalo en Todas para comparar"
+            )
             
         # Aplicar el filtro de rango de fechas de forma segura
         if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
