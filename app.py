@@ -4,7 +4,8 @@ import math
 import os
 import numpy as np
 import plotly.express as px
-
+import requests
+import io
 # --- 1. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
     page_title="Portal Logístico Global",
@@ -208,12 +209,18 @@ with tab1:
 # ==========================================
 # PESTAÑA 2: DASHBOARD DE AUDITORÍA
 # ==========================================
+# ==========================================
+# PESTAÑA 2: DASHBOARD DE AUDITORÍA
+# ==========================================
 with tab2:
     st.markdown("### 📊 Cuadro de Mandos: Auditoría de Proveedores")
-    url_google_sheet = ""
+    url_google_sheet = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQiHaIV7qP1PSCSTSSNlePsJNa3ySK_lGyBUqccQH_vtWgzz3lOVlqeDeCBgSVyXe3mmJuyf0F29t1e/pubhtml?gid=597514363&single=true"
     
     try:
-        df = pd.read_csv(url_google_sheet)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url_google_sheet, headers=headers)
+        df = pd.read_csv(io.StringIO(response.text))
+        
         df['Fecha Salida'] = pd.to_datetime(df['Fecha Salida'], format='%d/%m/%Y', errors='coerce')
         df['Fecha Entrega'] = pd.to_datetime(df['Fecha Entrega'], format='%d/%m/%Y', errors='coerce')
         df = df.dropna(subset=['Fecha Salida', 'Fecha Entrega'])
