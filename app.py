@@ -11,18 +11,6 @@ st.set_page_config(
     page_icon="📦",
     layout="wide"
 )
-# --- CONFIGURACIÓN DE METADATOS PARA COMPARTIR ENLACE (WHATSAPP / REDES) ---
-st.markdown(
-    """
-    <head>
-        <meta property="title" content="Portal Logístico Global | Grupo Universal">
-        <meta property="description" content="Sistema oficial de control, simulación de tarifas y auditoría de agencias (DHL y CBL).">
-        <meta property="og:title" content="Portal Logístico Global | Grupo Universal">
-        <meta property="og:description" content="Control de expediciones, tiempos de tránsito y auditoría de proveedores logísticos.">
-    </head>
-    """,
-    unsafe_allow_html=True
-)
 
 # --- 2. BARRA LATERAL: GUÍA DE PESOS ---
 with st.sidebar:
@@ -73,11 +61,9 @@ tab1, tab2 = st.tabs(["📦 Simulador de Envíos", "📊 Auditoría Logística"]
 # PESTAÑA 1: SIMULADOR OPERATIVO
 # ==========================================
 with tab1:
-    # --- INICIALIZAR HISTORIAL EN MEMORIA ---
     if 'historial' not in st.session_state:
         st.session_state['historial'] = []
 
-    # --- CARGA DE DATOS ---
     @st.cache_data
     def load_data():
         file_path = "Super_Simulador_Almacen.xlsx"
@@ -95,7 +81,6 @@ with tab1:
         st.error("⚠️ Error al leer el Excel. Comprueba que 'Super_Simulador_Almacen.xlsx' está subido correctamente.")
         st.stop()
 
-    # --- FORMULARIO DE ENTRADA ---
     with st.form("formulario_envio", clear_on_submit=False):
         tipo_envio = st.radio("Formato del envío:", ["📦 Bulto(s) sueltos", "🪵 Palet Europeo (Base 120x80)"], horizontal=True)
         
@@ -107,11 +92,10 @@ with tab1:
             
         altura_palet = 140
         if "Palet" in tipo_envio:
-            altura_palet = st.number_input("Altura estimada del palet (cm)", min_value=10, max_value=240, value=140, step=10, help="Por defecto 140cm. Ajusta si es más alto o más bajo.")
+            altura_palet = st.number_input("Altura estimada del palet (cm)", min_value=10, max_value=240, value=140, step=10)
 
-        calcular = st.form_submit_button("🚀 Calcular Agencia (O pulsa ENTER)", type="primary", use_container_width=True)
+        calcular = st.form_submit_button("🚀 Calcular Agencia", type="primary", use_container_width=True)
 
-    # --- LÓGICA DE CÁLCULO ---
     if calcular:
         if len(cp) < 2:
             st.warning("Por favor, introduce un Código Postal válido.")
@@ -127,7 +111,6 @@ with tab1:
                 z_dhl = str(zona_info.iloc[0]['Zona DHL'])
                 z_tipsa = str(zona_info.iloc[0]['Zona TIPSA'])
                 
-                # --- CÁLCULO DE PESOS TASABLES (Nuevas condiciones DHL) ---
                 peso_tasable_cbl = peso
                 peso_tasable_dhl = peso
                 es_palet = "Palet" in tipo_envio
@@ -142,12 +125,10 @@ with tab1:
                 costes = {}
                 es_canarias = (z_cbl == "Canarias" or z_cbl == "Especial")
                 
-                # RUTA 1: CANARIAS Y ESPECIALES
                 if es_canarias:
                     dua_cbl = 22.00
                     dua_dhl = 23.50
                     cp_num = int(cp) if cp.isdigit() else 0
-                    
                     isla_mayor = (35000 <= cp_num <= 35499) or (38000 <= cp_num <= 38699)
                     tipo_isla_cbl = "Islas Mayores" if isla_mayor else "Islas Menores"
                     
@@ -178,8 +159,6 @@ with tab1:
                     except:
                         costes['DHL Marítimo'] = float('inf')
                         costes['DHL Aéreo'] = float('inf')
-                
-                # RUTA 2: PENÍNSULA Y BALEARES
                 else:
                     try:
                         tarifa_cbl = tarifas_cbl[tarifas_cbl['Hasta Kg'] >= peso_tasable_cbl].iloc[0][f'Zona {z_cbl}']
@@ -202,7 +181,6 @@ with tab1:
                     else:
                         costes['TIPSA Economy'] = float('inf')
                 
-                # --- VISUALIZACIÓN DE RESULTADOS Y ESTRATEGIA ---
                 valid_costes = {k: v for k, v in costes.items() if v != float('inf')}
                 
                 if not valid_costes:
@@ -211,20 +189,6 @@ with tab1:
                     mejor_agencia = min(valid_costes, key=valid_costes.get)
                     mejor_precio = valid_costes[mejor_agencia]
                     
-                    alerta_estrategica = None
-                    if es_palet and 'CBL Logística' in valid_costes and 'DHL Parcel' in valid_costes:
-                        ahorro = valid_costes['DHL Parcel'] - valid_costes['CBL Logística']
-                        if peso_tasable_dhl == peso_tasable_cbl:
-                            mejor_agencia = "DHL Parcel"
-                            mejor_precio = valid_costes['DHL Parcel']
-                            alerta_estrategica = "🏆 **PRIORIDAD DHL:** Al no haber penalización de volumen, compensa usar DHL para evitar el 27,7% de retrasos de CBL."
-                        elif mejor_agencia == "CBL Logística":
-                            alerta_estrategica = f"⚠️ **USAR CBL CON PRECAUCIÓN:** Ahorras {ahorro:.2f} € porque DHL te facturaría {peso_tasable_dhl:.1f} kg (aire). Úsalo solo si la mercancía NO es urgente."
-
-                    provincias_andalucia = ['Sevilla', 'Málaga', 'Almería', 'Granada', 'Huelva', 'Cádiz', 'Córdoba', 'Jaén']
-                    if provincia in provincias_andalucia and mejor_agencia == "CBL Logística":
-                        alerta_estrategica = "🚨 **ALERTA ANDALUCÍA:** CBL tiene un 40% de fallos en esta zona. Se recomienda forzar el envío por DHL."
-
                     st.session_state['historial'].insert(0, {
                         "Destino": provincia, "CP": cp, "Formato": "Palet" if es_palet else "Bulto",
                         "Peso (kg)": peso, "Agencia": mejor_agencia, "Precio": f"{mejor_precio:.2f} €"
@@ -233,24 +197,8 @@ with tab1:
                     
                     st.markdown(f"### 📍 Destino: {provincia}")
                     st.success(f"### 🏆 RECOMENDACIÓN: {mejor_agencia}")
-                    st.metric(label="Coste Total Redondeado (Recargos e Impuestos inc.)", value=f"{mejor_precio:.2f} €")
-                    
-                    if alerta_estrategica:
-                        st.warning(alerta_estrategica)
-                    
-                    if es_palet:
-                        st.info(f"📊 **Cálculo aplicado:** Palet de {volumen_m3:.2f} m³. DHL cubicado a **167 kg/m³** (**{peso_tasable_dhl:.1f} kg** facturables). CBL cotizado por peso real (**{peso} kg**).")
-                    
-                    st.markdown("#### 📊 Comparativa completa:")
-                    cols_res = st.columns(len(valid_costes))
-                    for idx, (agencia, precio) in enumerate(valid_costes.items()):
-                        with cols_res[idx]:
-                            if agencia == mejor_agencia:
-                                st.metric(label=f"⭐ {agencia}", value=f"{precio:.2f} €")
-                            else:
-                                st.metric(label=agencia, value=f"{precio:.2f} €")
+                    st.metric(label="Coste Total Redondeado", value=f"{mejor_precio:.2f} €")
 
-    # --- MOSTRAR HISTORIAL ---
     if st.session_state['historial']:
         st.markdown("---")
         st.markdown("### 🕒 Últimos 5 envíos verificados")
@@ -262,148 +210,63 @@ with tab1:
 # ==========================================
 with tab2:
     st.markdown("### 📊 Cuadro de Mandos: Auditoría de Proveedores")
-    
-    # 1. CONEXIÓN A GOOGLE SHEETS
     url_google_sheet = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQiHaIV7qP1PSCSTSSNlePsJNa3ySK_lGyBUqccQH_vtWgzz3lOVlqeDeCBgSVyXe3mmJuyf0F29t1e/pub?output=csv"
     
     try:
         df = pd.read_csv(url_google_sheet)
-        
-        # Procesamiento y limpieza
         df['Fecha Salida'] = pd.to_datetime(df['Fecha Salida'], format='%d/%m/%Y', errors='coerce')
         df['Fecha Entrega'] = pd.to_datetime(df['Fecha Entrega'], format='%d/%m/%Y', errors='coerce')
         df = df.dropna(subset=['Fecha Salida', 'Fecha Entrega'])
         df['Provincia'] = df['Provincia'].astype(str).str.strip().str.title()
         
-        # --- 📅 FILTROS SUPERIORES: RANGO DE FECHAS Y AGENCIA (PERFECTAMENTE ALINEADOS) ---
         col_f1, col_f2 = st.columns(2)
-        
         with col_f1:
             min_f = df['Fecha Salida'].min().date()
             max_f = df['Fecha Salida'].max().date()
-            
-            rango_fechas = st.date_input(
-                "📅 Rango de Fechas (Campaña / Periodo):",
-                value=(min_f, max_f),
-                min_value=min_f,
-                max_value=max_f
-            )
-            
+            rango_fechas = st.date_input("📅 Rango de Fechas:", value=(min_f, max_f), min_value=min_f, max_value=max_f)
         with col_f2:
-            # Damos al selectbox exactamente el mismo texto de label (o invisible pero ocupando el espacio de la etiqueta superior) 
-            # para que el desplegable baje y se quede milimétricamente alineado con la caja del calendario de al lado.
-            agencia_filtro = st.selectbox(
-                "🔍 Filtrar por Agencia:", 
-                ["Todas", "DHL", "CBL"],
-                help="Selecciona una agencia específica o déjalo en Todas para comparar"
-            )
+            agencia_filtro = st.selectbox("🔍 Filtrar por Agencia:", ["Todas", "DHL", "CBL"])
             
-        # Aplicar el filtro de rango de fechas de forma segura
         if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
             inicio_filtro, fin_filtro = rango_fechas
             df = df[(df['Fecha Salida'].dt.date >= inicio_filtro) & (df['Fecha Salida'].dt.date <= fin_filtro)]
             
-        # Aplicar filtro de agencia
-        if agencia_filtro != "Todas":
-            df_filtrado = df[df['Agencia'] == agencia_filtro].copy()
-        else:
-            df_filtrado = df.copy()
+        df_filtrado = df[df['Agencia'] == agencia_filtro].copy() if agencia_filtro != "Todas" else df.copy()
             
-        # Cálculos de días hábiles y retrasos
         df_filtrado['Dias Habiles'] = np.busday_count(
             df_filtrado['Fecha Salida'].values.astype('datetime64[D]'), 
             df_filtrado['Fecha Entrega'].values.astype('datetime64[D]')
         )
         df_filtrado['Retraso'] = df_filtrado['Dias Habiles'] > 2
-        
         df_retrasos = df_filtrado[df_filtrado['Retraso'] == True]
         
-        # --- TARJETAS DE KPIs SUPERIORES ---
         total_envios = len(df_filtrado)
         total_retrasos = len(df_retrasos)
         tasa_global_fallo = (total_retrasos / total_envios * 100) if total_envios > 0 else 0
         
         kpi1, kpi2, kpi3 = st.columns(3)
-        kpi1.metric("📦 Total Envíos Analizados", f"{total_envios:,}")
-        kpi2.metric("🚨 Total Incidencias / Retrasos", f"{total_retrasos:,}", delta=f"-{tasa_global_fallo:.1f}% fallo", delta_color="inverse")
-        kpi3.metric("⏱️ Días Máximos de Retraso", f"{df_filtrado['Dias Habiles'].max() if total_envios > 0 else 0} días hábiles")
+        kpi1.metric("📦 Total Envíos", f"{total_envios:,}")
+        kpi2.metric("🚨 Total Retrasos", f"{total_retrasos:,}", delta=f"-{tasa_global_fallo:.1f}% fallo", delta_color="inverse")
+        kpi3.metric("⏱️ Máx. Días Retraso", f"{df_filtrado['Dias Habiles'].max() if total_envios > 0 else 0} días")
         
         st.markdown("---")
-        
-        # --- PREPARAR DATOS PARA GRÁFICOS ---
         col_graf1, col_graf2 = st.columns(2)
         
         with col_graf1:
-            # 🛡️ UMBRAL DINÁMICO: Si el rango de fechas es menor de 90 días, exigimos mínimo 2 envíos; si es mayor, 5.
-            dias_rango = (fin_filtro - inicio_filtro).days if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2 else 365
-            min_envios_umbral = 2 if dias_rango <= 92 else 5
-            
-            st.markdown(f"#### 📍 Top Provincias con Mayor Tasa de Fallo (Mín. {min_envios_umbral} envs)")
-            
-            stats_prov = df_filtrado.groupby(['Provincia', 'Agencia']).agg(
-                Total=('Retraso', 'count'),
-                Fallos=('Retraso', 'sum')
-            ).reset_index()
-            
+            stats_prov = df_filtrado.groupby(['Provincia', 'Agencia']).agg(Total=('Retraso', 'count'), Fallos=('Retraso', 'sum')).reset_index()
             stats_prov['Tasa Fallo (%)'] = (stats_prov['Fallos'] / stats_prov['Total']) * 100
-            stats_prov = stats_prov[stats_prov['Total'] >= min_envios_umbral]
-            stats_prov = stats_prov[stats_prov['Fallos'] > 0]
-            stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=False).head(10)
-            stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=True)
+            stats_prov = stats_prov[stats_prov['Total'] >= 2].sort_values(by='Tasa Fallo (%)', ascending=True)
             stats_prov['Provincia_Label'] = stats_prov['Provincia'] + " (" + stats_prov['Total'].astype(str) + " envs)"
             
-            if stats_prov.empty:
-                st.info(f"No hay suficientes provincias con un volumen de al menos {min_envios_umbral} envíos para este rango de fechas.")
-            else:
-                fig_prov = px.bar(
-                    stats_prov, x='Tasa Fallo (%)', y='Provincia_Label', color='Agencia', 
-                    barmode='group', orientation='h',
-                    color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'},
-                    text_auto='.1f'
-                )
-                fig_prov.update_layout(
-                    xaxis_title="Tasa de Fallo (%)", yaxis_title="",
-                    margin=dict(l=10, r=10, t=10, b=10), height=380,
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
+            if not stats_prov.empty:
+                fig_prov = px.bar(stats_prov, x='Tasa Fallo (%)', y='Provincia_Label', color='Agencia', barmode='group', orientation='h', color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'}, text_auto='.1f')
                 st.plotly_chart(fig_prov, use_container_width=True)
-            
+                
         with col_graf2:
-            st.markdown("#### 🚨 Top 10 Mayores Retrasos en Días")
-            
             top_peores = df_retrasos.sort_values(by='Dias Habiles', ascending=False).head(10).copy()
-            top_peores['Expedicion'] = top_peores['Expedicion'].astype(str)
-            
-            if top_peores.empty:
-                st.success("¡Excelente! No hay retrasos registrados en este rango de fechas.")
-            else:
-                fig_top = px.bar(
-                    top_peores, x='Expedicion', y='Dias Habiles', color='Agencia',
-                    text='Provincia',
-                    color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'}
-                )
-                fig_top.update_traces(textposition='outside')
-                fig_top.update_layout(
-                    xaxis_title="Nº de Expedición", yaxis_title="Días Hábiles",
-                    margin=dict(l=10, r=10, t=10, b=10), height=380,
-                    xaxis={'type': 'category'},
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                )
+            if not top_peores.empty:
+                fig_top = px.bar(top_peores, x='Expedicion', y='Dias Habiles', color='Agencia', text='Provincia', color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'})
                 st.plotly_chart(fig_top, use_container_width=True)
-            
-        st.markdown("---")
-        st.markdown("#### 📋 Detalle de Expediciones con Incumplimiento (> 2 días)")
-        
-        df_retrasos_show = df_retrasos.copy()
-        df_retrasos_show['Fecha Salida'] = df_retrasos_show['Fecha Salida'].dt.strftime('%d/%m/%Y')
-        df_retrasos_show['Fecha Entrega'] = df_retrasos_show['Fecha Entrega'].dt.strftime('%d/%m/%Y')
-        
-        st.dataframe(
-            df_retrasos_show[['Agencia', 'Expedicion', 'Provincia', 'Fecha Salida', 'Fecha Entrega', 'Dias Habiles']]
-            .sort_values('Dias Habiles', ascending=False), 
-            use_container_width=True, 
-            hide_index=True
-        )
-        
+                
     except Exception as e:
         st.error(f"⚠️ Error al cargar el panel de auditoría: {e}")
