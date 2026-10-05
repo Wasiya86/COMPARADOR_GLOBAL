@@ -214,7 +214,7 @@ with tab1:
 # ==========================================
 with tab2:
     st.markdown("### 📊 Cuadro de Mandos: Auditoría de Proveedores")
-    url_google_sheet = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQiHaIV7qP1PSCSTSSNlePsJNa3ySK_lGyBUqccQH_vtWgzz3lOVlqeDeCBgSVyXe3mmJuyf0F29t1e/pubhtml?gid=597514363&single=true"
+    url_google_sheet = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQiHaIV7qP1PSCSTSSNlePsJNa3ySK_lGyBUqccQH_vtWgzz3lOVlqeDeCBgSVyXe3mmJuyf0F29t1e/pub?output=csv"
     
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
