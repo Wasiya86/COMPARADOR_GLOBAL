@@ -52,22 +52,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. CONTROL DE LOGO CORPORATIVO CENTRADO (RUTA SEGURA) ---
-import os
-from PIL import Image
-
-ruta_logo = os.path.join(os.path.dirname(__file__), "logo.png")
-
-if os.path.exists(ruta_logo):
+# --- 4. CONTROL DE LOGO CORPORATIVO CENTRADO ---
+if os.path.exists("logo.png"):
     _, col_centro, _ = st.columns([1, 2, 1])
     with col_centro:
-        imagen = Image.open(ruta_logo)
-        st.image(imagen, use_container_width=True)
+        st.image("logo.png", width=220)
     
     st.markdown("<h2 style='text-align: center; color: #333;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
     st.markdown("---")
 else:
-    # Por si acaso no lo encuentra, mostramos directamente el título limpio para que no falle nunca
     st.markdown("<h2 style='text-align: center; color: #333;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
     st.markdown("---")
 
