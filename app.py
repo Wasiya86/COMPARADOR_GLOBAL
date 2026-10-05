@@ -6,6 +6,7 @@ import numpy as np
 import plotly.express as px
 import requests
 import io
+
 # --- 1. CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
     page_title="Portal Logístico Global",
@@ -43,11 +44,11 @@ st.markdown("""
 
 # --- 4. CONTROL DE LOGO CORPORATIVO CENTRADO ---
 if os.path.exists("logo.png"):
-    _, col_centro, _ = st.columns([1, 2, 1])
-    with col_centro:
-        st.image("logo.png", width=220)
+    _, col_c, _ = st.columns([2, 1.5, 2])
+    with col_c:
+        st.image("logo.png", use_container_width=True)
     
-    st.markdown("<h2 style='text-align: center; color: #333;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #333; margin-top: 0;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
     st.markdown("---")
 else:
     st.markdown("<h2 style='text-align: center; color: #333;'>📦 Portal Logístico Global</h2>", unsafe_allow_html=True)
@@ -79,7 +80,7 @@ with tab1:
     try:
         zonas, tarifas_cbl, tarifas_dhl, tarifas_tipsa, tarifas_cbl_can, tarifas_dhl_can = load_data()
     except Exception as e:
-        st.error("⚠️ Error al leer el Excel. Comprueba que 'Super_Simulador_Almacen.xlsx' está subido correctamente.")
+        st.error("⚠️️ Error al leer el Excel. Comprueba que 'Super_Simulador_Almacen.xlsx' está subido correctamente.")
         st.stop()
 
     with st.form("formulario_envio", clear_on_submit=False):
