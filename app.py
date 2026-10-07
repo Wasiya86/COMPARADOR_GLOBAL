@@ -183,7 +183,7 @@ with tab1:
                     else:
                         costes['TIPSA Economy'] = float('inf')
                 
-                valid_costes = {k: v for k, v in costes.items() if v != float('inf')}
+               valid_costes = {k: v for k, v in costes.items() if v != float('inf')}
                 
                 if not valid_costes:
                     st.error("No hay servicios disponibles para este rango de peso.")
@@ -191,6 +191,20 @@ with tab1:
                     mejor_agencia = min(valid_costes, key=valid_costes.get)
                     mejor_precio = valid_costes[mejor_agencia]
                     
+                    alerta_estrategica = None
+                    if es_palet and 'CBL Logística' in valid_costes and 'DHL Parcel' in valid_costes:
+                        ahorro = valid_costes['DHL Parcel'] - valid_costes['CBL Logística']
+                        if peso_tasable_dhl == peso_tasable_cbl:
+                            mejor_agencia = "DHL Parcel"
+                            mejor_precio = valid_costes['DHL Parcel']
+                            alerta_estrategica = "🏆 **PRIORIDAD DHL:** Al no haber penalización de volumen, compensa usar DHL."
+                        elif mejor_agencia == "CBL Logística":
+                            alerta_estrategica = f"⚠️ **USAR CBL CON PRECAUCIÓN:** Ahorras {ahorro:.2f} € frente a DHL."
+
+                    provincias_andalucia = ['Sevilla', 'Málaga', 'Almería', 'Granada', 'Huelva', 'Cádiz', 'Córdoba', 'Jaén']
+                    if provincia in provincias_andalucia and mejor_agencia == "CBL Logística":
+                        alerta_estrategica = "🚨 **ALERTA ANDALUCÍA:** CBL tiene mayor tasa de incidencias en esta zona. Se recomienda DHL."
+
                     st.session_state['historial'].insert(0, {
                         "Destino": provincia, "CP": cp, "Formato": "Palet" if es_palet else "Bulto",
                         "Peso (kg)": peso, "Agencia": mejor_agencia, "Precio": f"{mejor_precio:.2f} €"
@@ -199,8 +213,23 @@ with tab1:
                     
                     st.markdown(f"### 📍 Destino: {provincia}")
                     st.success(f"### 🏆 RECOMENDACIÓN: {mejor_agencia}")
-                    st.metric(label="Coste Total Redondeado", value=f"{mejor_precio:.2f} €")
-
+                    st.metric(label="Coste Total Redondeado (Recargos e Impuestos inc.)", value=f"{mejor_precio:.2f} €")
+                    
+                    if alerta_estrategica:
+                        st.warning(alerta_estrategica)
+                    
+                    if es_palet:
+                        st.info(f"📊 **Cálculo aplicado:** Palet de {volumen_m3:.2f} m³. DHL cubicado a **167 kg/m³** (**{peso_tasable_dhl:.1f} kg** facturables). CBL cotizado por peso real (**{peso} kg**).")
+                    
+                    # --- COMPARATIVA COMPLETA DE PRECIOS ---
+                    st.markdown("#### 📊 Comparativa completa:")
+                    cols_res = st.columns(len(valid_costes))
+                    for idx, (agencia, precio) in enumerate(valid_costes.items()):
+                        with cols_res[idx]:
+                            if agencia == mejor_agencia:
+                                st.metric(label=f"⭐ {agencia}", value=f"{precio:.2f} €")
+                            else:
+                                st.metric(label=agencia, value=f"{precio:.2f} €")
     if st.session_state['historial']:
         st.markdown("---")
         st.markdown("### 🕒 Últimos 5 envíos verificados")
