@@ -80,7 +80,7 @@ with tab1:
     try:
         zonas, tarifas_cbl, tarifas_dhl, tarifas_tipsa, tarifas_cbl_can, tarifas_dhl_can = load_data()
     except Exception as e:
-        st.error("⚠️️ Error al leer el Excel. Comprueba que 'Super_Simulador_Almacen.xlsx' está subido correctamente.")
+        st.error("⚠️ Error al leer el Excel. Comprueba que 'Super_Simulador_Almacen.xlsx' está subido correctamente.")
         st.stop()
 
     with st.form("formulario_envio", clear_on_submit=False):
@@ -183,7 +183,7 @@ with tab1:
                     else:
                         costes['TIPSA Economy'] = float('inf')
                 
-               valid_costes = {k: v for k, v in costes.items() if v != float('inf')}
+                valid_costes = {k: v for k, v in costes.items() if v != float('inf')}
                 
                 if not valid_costes:
                     st.error("No hay servicios disponibles para este rango de peso.")
@@ -230,6 +230,7 @@ with tab1:
                                 st.metric(label=f"⭐ {agencia}", value=f"{precio:.2f} €")
                             else:
                                 st.metric(label=agencia, value=f"{precio:.2f} €")
+
     if st.session_state['historial']:
         st.markdown("---")
         st.markdown("### 🕒 Últimos 5 envíos verificados")
@@ -283,61 +284,4 @@ with tab2:
         tasa_global_fallo = (total_retrasos / total_envios * 100) if total_envios > 0 else 0
         
         kpi1, kpi2, kpi3 = st.columns(3)
-        kpi1.metric("📦 Total Envíos Analizados", f"{total_envios:,}")
-        kpi2.metric("🚨 Total Incidencias / Retrasos", f"{total_retrasos:,}", delta=f"-{tasa_global_fallo:.1f}% fallo", delta_color="inverse")
-        kpi3.metric("⏱️ Días Máximos de Retraso", f"{df_filtrado['Dias Habiles'].max() if total_envios > 0 else 0} días hábiles")
-        
-        st.markdown("---")
-        
-        # --- GRÁFICOS ---
-        col_graf1, col_graf2 = st.columns(2)
-        
-        with col_graf1:
-            dias_rango = (fin_filtro - inicio_filtro).days if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2 else 365
-            min_envios_umbral = 2 if dias_rango <= 92 else 5
-            
-            st.markdown(f"#### 📍 Top Provincias con Mayor Tasa de Fallo")
-            stats_prov = df_filtrado.groupby(['Provincia', 'Agencia']).agg(Total=('Retraso', 'count'), Fallos=('Retraso', 'sum')).reset_index()
-            stats_prov['Tasa Fallo (%)'] = (stats_prov['Fallos'] / stats_prov['Total']) * 100
-            stats_prov = stats_prov[stats_prov['Total'] >= min_envios_umbral]
-            stats_prov = stats_prov[stats_prov['Fallos'] > 0]
-            stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=False).head(10)
-            stats_prov = stats_prov.sort_values(by='Tasa Fallo (%)', ascending=True)
-            stats_prov['Provincia_Label'] = stats_prov['Provincia'] + " (" + stats_prov['Total'].astype(str) + " envs)"
-            
-            if stats_prov.empty:
-                st.info("No hay suficientes provincias con incidencias para este rango.")
-            else:
-                fig_prov = px.bar(stats_prov, x='Tasa Fallo (%)', y='Provincia_Label', color='Agencia', barmode='group', orientation='h', color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'}, text_auto='.1f')
-                fig_prov.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=380, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-                st.plotly_chart(fig_prov, use_container_width=True)
-            
-        with col_graf2:
-            st.markdown(f"#### 🚨 Top 10 Mayores Retrasos en Días")
-            top_peores = df_retrasos.sort_values(by='Dias Habiles', ascending=False).head(10).copy()
-            top_peores['Expedicion'] = top_peores['Expedicion'].astype(str)
-            
-            if top_peores.empty:
-                st.success("¡Excelente! No hay retrasos registrados.")
-            else:
-                fig_top = px.bar(top_peores, x='Expedicion', y='Dias Habiles', color='Agencia', text='Provincia', color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'})
-                fig_top.update_traces(textposition='outside')
-                fig_top.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=380, xaxis={'type': 'category'}, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-                st.plotly_chart(fig_top, use_container_width=True)
-                
-        # --- TABLA DETALLE ---
-        st.markdown("---")
-        st.markdown("#### 📋 Detalle de Expediciones con Incumplimiento (> 2 días)")
-        df_retrasos_show = df_retrasos.copy()
-        df_retrasos_show['Fecha Salida'] = df_retrasos_show['Fecha Salida'].dt.strftime('%d/%m/%Y')
-        df_retrasos_show['Fecha Entrega'] = df_retrasos_show['Fecha Entrega'].dt.strftime('%d/%m/%Y')
-        
-        st.dataframe(
-            df_retrasos_show[['Agencia', 'Expedicion', 'Provincia', 'Fecha Salida', 'Fecha Entrega', 'Dias Habiles']]
-            .sort_values('Dias Habiles', ascending=False), 
-            use_container_width=True, 
-            hide_index=True
-        )
-        
-    except Exception as e:
-        st.error(f"⚠️ Error al cargar el panel de auditoría: {e}")
+        kpi1.
