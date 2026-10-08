@@ -254,6 +254,7 @@ with tab2:
         df['Fecha Entrega'] = pd.to_datetime(df['Fecha Entrega'], format='%d/%m/%Y', errors='coerce')
         df = df.dropna(subset=['Fecha Salida', 'Fecha Entrega'])
         df['Provincia'] = df['Provincia'].astype(str).str.strip().str.title()
+        df['Agencia'] = df['Agencia'].astype(str).str.strip().str.upper()
         
         # --- FILTROS SUPERIORES ---
         col_f1, col_f2 = st.columns(2)
@@ -262,7 +263,7 @@ with tab2:
             max_f = df['Fecha Salida'].max().date()
             rango_fechas = st.date_input("📅 Rango de Fechas (Campaña / Periodo):", value=(min_f, max_f), min_value=min_f, max_value=max_f)
         with col_f2:
-            agencia_filtro = st.selectbox("🔍 Filtrar por Agencia:", ["Todas", "DHL", "CBL"])
+            agencia_filtro = st.selectbox("🔍 Filtrar por Agencia:", ["Todas", "DHL", "CBL", "TIPSA"])
             
         if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2:
             inicio_filtro, fin_filtro = rango_fechas
@@ -293,6 +294,9 @@ with tab2:
         # --- GRÁFICOS ---
         col_graf1, col_graf2 = st.columns(2)
         
+        # Mapa de colores para las agencias (incluyendo TIPSA)
+        color_map_agencias = {'DHL': '#D40511', 'CBL': '#004B87', 'TIPSA': '#009639'}
+        
         with col_graf1:
             dias_rango = (fin_filtro - inicio_filtro).days if isinstance(rango_fechas, tuple) and len(rango_fechas) == 2 else 365
             min_envios_umbral = 2 if dias_rango <= 92 else 5
@@ -309,7 +313,7 @@ with tab2:
             if stats_prov.empty:
                 st.info("No hay suficientes provincias con incidencias para este rango.")
             else:
-                fig_prov = px.bar(stats_prov, x='Tasa Fallo (%)', y='Provincia_Label', color='Agencia', barmode='group', orientation='h', color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'}, text_auto='.1f')
+                fig_prov = px.bar(stats_prov, x='Tasa Fallo (%)', y='Provincia_Label', color='Agencia', barmode='group', orientation='h', color_discrete_map=color_map_agencias, text_auto='.1f')
                 fig_prov.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=380, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
                 st.plotly_chart(fig_prov, use_container_width=True)
             
@@ -321,7 +325,7 @@ with tab2:
             if top_peores.empty:
                 st.success("¡Excelente! No hay retrasos registrados.")
             else:
-                fig_top = px.bar(top_peores, x='Expedicion', y='Dias Habiles', color='Agencia', text='Provincia', color_discrete_map={'DHL': '#D40511', 'CBL': '#004B87'})
+                fig_top = px.bar(top_peores, x='Expedicion', y='Dias Habiles', color='Agencia', text='Provincia', color_discrete_map=color_map_agencias)
                 fig_top.update_traces(textposition='outside')
                 fig_top.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=380, xaxis={'type': 'category'}, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
                 st.plotly_chart(fig_top, use_container_width=True)
