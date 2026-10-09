@@ -124,7 +124,7 @@ with tab1:
                     peso_vol_dhl = volumen_m3 * ratio_dhl_aplicado
                     peso_tasable_dhl = max(peso, peso_vol_dhl)
                 
-               costes = {}
+                costes = {}
                 es_canarias = (z_cbl == "Canarias" or z_cbl == "Especial")
                 
                 if es_canarias:
@@ -302,7 +302,6 @@ with tab2:
         # --- GRÁFICOS ---
         col_graf1, col_graf2 = st.columns(2)
         
-        # Mapa de colores para las agencias (incluyendo TIPSA)
         color_map_agencias = {'DHL': '#D40511', 'CBL': '#004B87', 'TIPSA': '#009639'}
         
         with col_graf1:
