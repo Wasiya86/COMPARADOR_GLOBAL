@@ -124,7 +124,7 @@ with tab1:
                     peso_vol_dhl = volumen_m3 * ratio_dhl_aplicado
                     peso_tasable_dhl = max(peso, peso_vol_dhl)
                 
-                costes = {}
+               costes = {}
                 es_canarias = (z_cbl == "Canarias" or z_cbl == "Especial")
                 
                 if es_canarias:
@@ -142,14 +142,16 @@ with tab1:
                         reexp_dhl = "Interislas"
                     
                     try:
-                        row_cbl = tarifas_cbl_can[tarifas_cbl_can['Hasta Kg'] >= peso_tasable_cbl].iloc[0]
+                        df_cbl_can_filtered = tarifas_cbl_can[tarifas_cbl_can['Hasta Kg'] >= peso_tasable_cbl]
+                        row_cbl = df_cbl_can_filtered.iloc[0] if not df_cbl_can_filtered.empty else tarifas_cbl_can.iloc[-1]
                         base_cbl = row_cbl[tipo_isla_cbl]
                         costes['CBL Marítimo'] = base_cbl + (base_cbl * 0.10) + (base_cbl * 0.08) + 0.50 + dua_cbl
                     except:
                         costes['CBL Marítimo'] = float('inf')
                         
                     try:
-                        row_dhl = tarifas_dhl_can[tarifas_dhl_can['Hasta Kg'] >= peso_tasable_dhl].iloc[0]
+                        df_dhl_can_filtered = tarifas_dhl_can[tarifas_dhl_can['Hasta Kg'] >= peso_tasable_dhl]
+                        row_dhl = df_dhl_can_filtered.iloc[0] if not df_dhl_can_filtered.empty else tarifas_dhl_can.iloc[-1]
                         base_dhl_mar = row_dhl['Marítimo (Base)']
                         base_dhl_aer = row_dhl['Aéreo (Base)']
                         extra_reexp = 0
@@ -163,20 +165,26 @@ with tab1:
                         costes['DHL Aéreo'] = float('inf')
                 else:
                     try:
-                        tarifa_cbl = tarifas_cbl[tarifas_cbl['Hasta Kg'] >= peso_tasable_cbl].iloc[0][f'Zona {z_cbl}']
+                        df_cbl_filtered = tarifas_cbl[tarifas_cbl['Hasta Kg'] >= peso_tasable_cbl]
+                        row_cbl = df_cbl_filtered.iloc[0] if not df_cbl_filtered.empty else tarifas_cbl.iloc[-1]
+                        tarifa_cbl = row_cbl[f'Zona {z_cbl}']
                         costes['CBL Logística'] = tarifa_cbl + (tarifa_cbl * 0.10) + (tarifa_cbl * 0.08) + 0.50
                     except:
                         costes['CBL Logística'] = float('inf')
                     
                     try:
-                        tarifa_dhl = tarifas_dhl[tarifas_dhl['Hasta Kg'] >= peso_tasable_dhl].iloc[0][f'Zona {z_dhl}']
+                        df_dhl_filtered = tarifas_dhl[tarifas_dhl['Hasta Kg'] >= peso_tasable_dhl]
+                        row_dhl = df_dhl_filtered.iloc[0] if not df_dhl_filtered.empty else tarifas_dhl.iloc[-1]
+                        tarifa_dhl = row_dhl[f'Zona {z_dhl}']
                         costes['DHL Parcel'] = tarifa_dhl + (tarifa_dhl * 0.1015)
                     except:
                         costes['DHL Parcel'] = float('inf')
                     
                     if z_tipsa != "No Ofertado" and peso <= 50 and not es_palet:
                         try:
-                            tarifa_tipsa = tarifas_tipsa[tarifas_tipsa['Hasta Kg'] >= peso].iloc[0][z_tipsa]
+                            df_tipsa_filtered = tarifas_tipsa[tarifas_tipsa['Hasta Kg'] >= peso]
+                            row_tipsa = df_tipsa_filtered.iloc[0] if not df_tipsa_filtered.empty else tarifas_tipsa.iloc[-1]
+                            tarifa_tipsa = row_tipsa[z_tipsa]
                             costes['TIPSA Economy'] = tarifa_tipsa + (tarifa_tipsa * 0.1030)
                         except:
                             costes['TIPSA Economy'] = float('inf')
